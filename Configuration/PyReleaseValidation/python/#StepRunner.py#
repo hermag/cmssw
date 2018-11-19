@@ -99,7 +99,6 @@ class StepRunner(object):
                         wf_step_cmds.append(cmd)
                         wf_step_inFiles.append(inFile)
                         print "StepRunner ---> cmd ---> ", cmd
-
                     if str(sorted(workflows[task_id].keys())[0]) != "1":
                         step_id = "step1"
                         wfDict[task_id][step_id] = {}
@@ -125,6 +124,7 @@ class StepRunner(object):
                             #wfDict[task_id][step_id]['nominalNumberOfEvents'] = workflows[task_id][step]['nominalNumberOfEvents']
                             wfDict[task_id][step_id]['nThreadsMax'] = workflows[task_id][step]['maxCPUs']
                             wfDict[task_id][step_id]['status'] = "none"
+                            print "----> ",step
                             wfDict[task_id][step_id]['cmd'] = wf_step_cmds[int(step) - 1]
                             wfDict[task_id][step_id]['inFile'] = wf_step_inFiles[int(step) - 1]
                             wfDict[task_id][step_id]['runstatus'] = None

@@ -104,7 +104,7 @@ class MatrixRunner(object):
             else:
                 pass
             sys.stdout.flush()
-            steprunner = StepRunner(opt, self.workFlows)
+            steprunner = StepRunner(opt, self.workFlows, opt.wfinfo)
             wf_ids = {}
             wf_dict, wf_ids = steprunner.create_input_json()
             number_of_available_cores = opt.nProcs
