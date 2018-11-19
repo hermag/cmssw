@@ -99,6 +99,10 @@ class MatrixRunner(object):
                                             
             #return anyFail
         else:
+            if not opt.wfinfo:
+                sys.exit("Path to the workflows information file is not defined.")
+            else:
+                pass
             sys.stdout.flush()
             steprunner = StepRunner(opt, self.workFlows)
             wf_ids = {}
