@@ -254,7 +254,13 @@ if __name__ == '__main__':
                       dest='jobReports',
                       default=False,
                       action='store_true')
-    
+
+    parser.add_option('-o','--cpu-optimized',
+                      help='Allows to run workflow with step level scheduling.',
+                      dest='steprunner',
+                      default=False,
+                      action='store_true')    
+
     parser.add_option('--ibeos',
                       help='Use IB EOS site configuration',
                       dest='IBEos',
