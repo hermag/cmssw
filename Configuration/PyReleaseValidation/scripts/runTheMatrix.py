@@ -64,7 +64,6 @@ if __name__ == '__main__':
                      136.788, #2017B Photon data
                      136.85, #2018A Egamma data
                      140.53, #2011 HI data
-                     140.56, #2018 HI data
                      150.0, #2018 HI MC
                      158.0, #2018 HI MC with pp-like reco
                      1306.0, #SingleMu Pt1 UP15
@@ -255,7 +254,19 @@ if __name__ == '__main__':
                       dest='jobReports',
                       default=False,
                       action='store_true')
-    
+
+    parser.add_option('-o','--cpu-optimized',
+                      help='Allows to run workflow with step level scheduling.',
+                      dest='steprunner',
+                      default=False,
+                      action='store_true')
+
+    parser.add_option('--workflow-info',
+                      help='Provides information about workflows.',
+                      dest='wfinfo',
+                      default=False,
+                      action='store')
+
     parser.add_option('--ibeos',
                       help='Use IB EOS site configuration',
                       dest='IBEos',

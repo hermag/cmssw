@@ -1,8 +1,8 @@
-from __future__ import print_function
 import os, sys, time
 
 from Configuration.PyReleaseValidation.WorkFlow import WorkFlow
 from Configuration.PyReleaseValidation.WorkFlowRunner import WorkFlowRunner
+from StepRunner import StepRunner
 
 # ================================================================================
 
@@ -27,81 +27,105 @@ class MatrixRunner(object):
 
         return nActive
 
-
+        
     def runTests(self, opt):
-
         testList=opt.testList
-        dryRun=opt.dryRun
-        cafVeto=opt.cafVeto
-
         startDir = os.getcwd()
+        if not opt.steprunner:
+            dryRun=opt.dryRun
+            cafVeto=opt.cafVeto
+            report=''
+            noRun=(self.maxThreads==0)
+            if noRun:
+                print 'Not running the wf, only creating cfgs and logs'
+                print 'resetting to default number of threads'
+                self.maxThreads=4
+            print 'Running in %s thread(s)' % self.maxThreads
+            
+            for wf in self.workFlows:
+                if testList and float(wf.numId) not in [float(x) for x in testList]: continue
 
-        report=''
-        noRun=(self.maxThreads==0)
-        if noRun:
-            print('Not running the wf, only creating cfgs and logs')
-            print('resetting to default number of threads')
-            self.maxThreads=4
+                item = wf.nameId
+                if os.path.islink(item) : continue # ignore symlinks
+            
+                # make sure we don't run more than the allowed number of threads:
+                while self.activeThreads() >= self.maxThreads:
+                    time.sleep(1)
+    	    
+                print '\nPreparing to run %s %s' % (wf.numId, item)
+                sys.stdout.flush()
+                current = WorkFlowRunner(wf,noRun,dryRun,cafVeto, opt.dasOptions, opt.jobReports, opt.nThreads, opt.maxSteps)
+                self.threadList.append(current)
+                current.start()
+                if not dryRun:
+                    time.sleep(0.5) # try to avoid race cond by sleeping 0.5 sec
 
-        print('Running in %s thread(s)' % self.maxThreads)
+            # wait until all threads are finished
+            while self.activeThreads() > 0:
+                time.sleep(0.5)
 
+            #wrap up !
+            totpassed=[]
+            totfailed=[]
+            def count(collect,result):
+                #pad with zeros
+                for i in range(len(collect),len(result)):
+                    collect.append(0)
+                for i,c in enumerate(result):
+                    collect[i]+=c
+                
+            for pingle in self.threadList:
+                pingle.join()
+                try:
+                    count(totpassed,pingle.npass)
+                    count(totfailed,pingle.nfail)
+                    report+=pingle.report
+                    self.runDirs[pingle.wf.numId]=pingle.wfDir
+                except Exception as e:
+                    msg = "ERROR retrieving info from thread: " + str(e)
+                    report += msg
+                    
+            report+=' '.join(map(str,totpassed))+' tests passed, '+' '.join(map(str,totfailed))+' failed\n'
+            #print report
+            #sys.stdout.flush()
 
-        for wf in self.workFlows:
+            #runall_report_name='runall-report-step123-.log'
+            #runall_report=open(runall_report_name,'w')
+            #runall_report.write(report)
+            #runall_report.close()
+            #os.chdir(startDir)
 
-            if testList and float(wf.numId) not in [float(x) for x in testList]: continue
-
-            item = wf.nameId
-            if os.path.islink(item) : continue # ignore symlinks
-
-            # make sure we don't run more than the allowed number of threads:
-            while self.activeThreads() >= self.maxThreads:
-                time.sleep(1)
-
-            print('\nPreparing to run %s %s' % (wf.numId, item))
+            anyFail=sum(totfailed)
+                                            
+            #return anyFail
+        else:
+            if not opt.wfinfo:
+                sys.exit("Path to the workflows information file is not defined.")
+            else:
+                pass
             sys.stdout.flush()
-            current = WorkFlowRunner(wf,noRun,dryRun,cafVeto, opt.dasOptions, opt.jobReports, opt.nThreads, opt.maxSteps)
-            self.threadList.append(current)
-            current.start()
-            if not dryRun:
-                time.sleep(0.5) # try to avoid race cond by sleeping 0.5 sec
+            steprunner = StepRunner(opt, self.workFlows, opt.wfinfo)
+            wf_ids = {}
+            wf_dict, wf_ids = steprunner.create_input_json()
+            number_of_available_cores = opt.nProcs
+            while steprunner.checker(wf_dict) != 'end':
+                wf_dict, number_of_available_cores = steprunner.updater(wf_dict, number_of_available_cores)
+                wf_dict, number_of_available_cores = steprunner.submitter(wf_dict, number_of_available_cores)
+                #time.sleep(0.5)
+            exit_code_list = []
+            overall_exit_string = ""
+            return_string = ""
+            exit_code_list, exit_string, report = steprunner.get_report(wf_dict, wf_ids)
+            anyFail = sum(exit_code_list)
 
-        # wait until all threads are finished
-        while self.activeThreads() > 0:
-            time.sleep(0.5)
+        print report
+	sys.stdout.flush()
+	
+	runall_report_name = 'runall-report-step123-.log'
+	runall_report = open(runall_report_name, 'w')
+	runall_report.write(report)
+	runall_report.close()
+	os.chdir(startDir)
 
-
-        #wrap up !
-        totpassed=[]
-        totfailed=[]
-        def count(collect,result):
-            #pad with zeros
-            for i in range(len(collect),len(result)):
-                collect.append(0)
-            for i,c in enumerate(result):
-                collect[i]+=c
-
-        for pingle in self.threadList:
-            pingle.join()
-            try:
-                count(totpassed,pingle.npass)
-                count(totfailed,pingle.nfail)
-                report+=pingle.report
-                self.runDirs[pingle.wf.numId]=pingle.wfDir
-            except Exception as e:
-                msg = "ERROR retrieving info from thread: " + str(e)
-                report += msg
-
-        report+=' '.join(map(str,totpassed))+' tests passed, '+' '.join(map(str,totfailed))+' failed\n'
-        print(report)
-        sys.stdout.flush()
-
-        runall_report_name='runall-report-step123-.log'
-        runall_report=open(runall_report_name,'w')
-        runall_report.write(report)
-        runall_report.close()
-        os.chdir(startDir)
-
-        anyFail=sum(totfailed)
-
-        return anyFail
+	return anyFail
 
